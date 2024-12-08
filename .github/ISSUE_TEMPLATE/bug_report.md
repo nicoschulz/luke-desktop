@@ -19,14 +19,10 @@ Steps to reproduce the behavior:
 **Expected behavior**
 A clear and concise description of what you expected to happen.
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
-
 **Environment:**
  - OS: [e.g. Windows 11]
  - Node Version: [e.g. 22.11.0]
  - Rust Version: [e.g. 1.83.0]
- - App Version: [e.g. 0.1.0]
 
 **Additional context**
 Add any other context about the problem here.

@@ -2,31 +2,25 @@ export interface AnthropicConfig {
   apiKey: string;
   baseUrl?: string;
   model?: string;
+  organization?: string;
   maxRetries?: number;
-}
-
-export interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-  id?: string;
-  timestamp?: number;
+  retryDelay?: number;
 }
 
 export interface ChatRequest {
   messages: Message[];
-  model?: string;
-  max_tokens?: number;
+  model: string;
+  maxTokens?: number;
   temperature?: number;
-  top_p?: number;
-  top_k?: number;
-  stream?: boolean;
+  stopSequences?: string[];
+  systemPrompt?: string;
 }
 
 export interface ChatResponse {
   id: string;
   model: string;
-  role: 'assistant';
   content: string;
+  created_at: number;
   stop_reason: string | null;
   stop_sequence: string | null;
   usage: {
@@ -35,26 +29,27 @@ export interface ChatResponse {
   };
 }
 
-export interface StreamChunk {
+export interface Message {
   id: string;
-  model: string;
-  type: 'content_block_start' | 'content_block_delta' | 'content_block_stop';
-  index: number;
-  delta?: {
-    text?: string;
-    type?: string;
-  };
-  content_block?: {
-    text?: string;
-    type?: string;
-  };
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  created_at: number;
 }
 
-export type ChatEventCallback = (event: StreamChunk) => void;
-export type ErrorCallback = (error: Error) => void;
+export interface ChatEventCallback {
+  onChunk?: (chunk: string) => void;
+  onError?: (error: Error) => void;
+  onComplete?: (response: ChatResponse) => void;
+}
+
+export interface StreamChunk {
+  type: string;
+  data?: any;
+  error?: string;
+}
 
 export interface AnthropicError extends Error {
-  status?: number;
   code?: string;
-  param?: string;
+  status?: number;
+  details?: any;
 }

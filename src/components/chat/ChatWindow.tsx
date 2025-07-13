@@ -1,33 +1,23 @@
-import React, { useState } from 'react';
-import type { Message, Attachment } from '../../lib/types/chat';
 import { useChat } from '../../hooks/useChat';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { ChatHeader } from './ChatHeader';
-import { AttachmentList } from './AttachmentList';
 
 interface ChatWindowProps {
   chatId: string;
-  projectId: string;
 }
 
-export function ChatWindow({ chatId, projectId }: ChatWindowProps) {
+export function ChatWindow({ chatId }: ChatWindowProps) {
   const {
     chat,
     messages,
-    attachments,
     loading,
     error,
     addMessage,
-    editMessage,
-    deleteMessage,
-    addAttachment,
     addTag,
     removeTag,
     updateChat
   } = useChat(chatId);
-
-  const [editingMessage, setEditingMessage] = useState<string | null>(null);
 
   if (loading) {
     return (
@@ -57,18 +47,6 @@ export function ChatWindow({ chatId, projectId }: ChatWindowProps) {
     await addMessage(content, 'user');
   };
 
-  const handleEditMessage = async (messageId: string, content: string) => {
-    await editMessage(messageId, content);
-    setEditingMessage(null);
-  };
-
-  const handleFileUpload = async (file: File) => {
-    const messageId = await addMessage('Uploaded file: ' + file.name, 'user');
-    if (messageId) {
-      await addAttachment(messageId, file);
-    }
-  };
-
   return (
     <div className="flex flex-col h-full">
       <ChatHeader
@@ -82,18 +60,12 @@ export function ChatWindow({ chatId, projectId }: ChatWindowProps) {
       <div className="flex-1 overflow-auto">
         <MessageList
           messages={messages}
-          attachments={attachments}
-          editingMessageId={editingMessage}
-          onEditStart={setEditingMessage}
-          onEditComplete={handleEditMessage}
-          onDelete={deleteMessage}
         />
       </div>
 
       <div className="border-t border-gray-200 p-4">
         <MessageInput
           onSendMessage={handleSendMessage}
-          onFileUpload={handleFileUpload}
         />
       </div>
     </div>

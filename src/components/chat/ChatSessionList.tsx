@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useChat } from '../../hooks/useChat';
 import { Button } from '../ui/button';
 import { ScrollArea } from '../ui/scroll-area';

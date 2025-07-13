@@ -1,103 +1,100 @@
 import { useState, useEffect, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api';
 import { MCPServer } from '../lib/mcp/types';
 
 interface UseMCPReturn {
-  // Server management
   servers: MCPServer[];
   defaultServer: MCPServer | null;
   loading: boolean;
   error: string | null;
-  
-  // Actions
-  addServer: (server: Omit<MCPServer, 'id' | 'isActive'>) => Promise<MCPServer>;
-  updateServer: (server: MCPServer) => Promise<void>;
-  removeServer: (id: string) => Promise<void>;
-  setDefaultServer: (id: string) => Promise<void>;
+  addServer: (server: Omit<MCPServer, 'id' | 'isActive'>) => Promise<void>;
+  removeServer: (serverId: string) => Promise<void>;
+  setDefaultServer: (serverId: string) => Promise<void>;
   refreshServers: () => Promise<void>;
 }
 
 export function useMCP(): UseMCPReturn {
   const [servers, setServers] = useState<MCPServer[]>([]);
-  const [defaultServer, setDefaultServerState] = useState<MCPServer | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [defaultServer, setDefaultServer] = useState<MCPServer | null>(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const refreshServers = useCallback(async () => {
+  const loadServers = useCallback(async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      setError(null);
-
       const [serverList, defaultServerData] = await Promise.all([
-        invoke<MCPServer[]>('get_mcp_servers'),
-        invoke<MCPServer | null>('get_default_mcp_server')
+        // invoke<MCPServer[]>('get_mcp_servers'),
+        Promise.resolve([] as MCPServer[]),
+        // invoke<MCPServer | null>('get_default_mcp_server')
+        Promise.resolve(null as MCPServer | null)
       ]);
 
       setServers(serverList);
-      setDefaultServerState(defaultServerData);
+      setDefaultServer(defaultServerData);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load MCP servers');
+      setError(err instanceof Error ? err.message : 'Failed to load servers');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  const addServer = useCallback(async (serverData: Omit<MCPServer, 'id' | 'isActive'>) => {
-    try {
-      const newServer = await invoke<MCPServer>('add_mcp_server', {
-        server: {
-          ...serverData,
-          id: '', // Will be set by backend
-          isActive: false
-        }
-      });
-      
-      await refreshServers();
-      return newServer;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to add server';
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    }
-  }, [refreshServers]);
-
-  const updateServer = useCallback(async (server: MCPServer) => {
-    try {
-      await invoke('update_mcp_server', { server });
-      await refreshServers();
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to update server';
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    }
-  }, [refreshServers]);
-
-  const removeServer = useCallback(async (id: string) => {
-    try {
-      await invoke('remove_mcp_server', { id });
-      await refreshServers();
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to remove server';
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    }
-  }, [refreshServers]);
-
-  const setDefaultServer = useCallback(async (id: string) => {
-    try {
-      await invoke('set_default_mcp_server', { id });
-      await refreshServers();
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to set default server';
-      setError(errorMessage);
-      throw new Error(errorMessage);
-    }
-  }, [refreshServers]);
-
-  // Load initial data
   useEffect(() => {
-    refreshServers();
-  }, [refreshServers]);
+    loadServers();
+  }, [loadServers]);
+
+  const addServer = useCallback(async (server: Omit<MCPServer, 'id' | 'isActive'>) => {
+    try {
+      setError(null);
+      // const newServer = await invoke<MCPServer>('add_mcp_server', {
+      const newServer = await Promise.resolve({
+        id: 'dummy-server-id',
+        isActive: false,
+        ...server
+      } as MCPServer);
+      //   name: server.name,
+      //   description: server.description,
+      //   command: server.command,
+      //   args: server.args,
+      //   env: server.env,
+      //   cwd: server.cwd,
+      //   token: server.token
+      // });
+
+      setServers(prev => [...prev, newServer]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add server');
+      throw err;
+    }
+  }, []);
+
+  const removeServer = useCallback(async (serverId: string) => {
+    try {
+      setError(null);
+      // await invoke('remove_mcp_server', { serverId });
+      await Promise.resolve();
+      setServers(prev => prev.filter(s => s.id !== serverId));
+      if (defaultServer?.id === serverId) {
+        setDefaultServer(null);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to remove server');
+      throw err;
+    }
+  }, [defaultServer]);
+
+  const setDefaultServerCallback = useCallback(async (serverId: string) => {
+    try {
+      setError(null);
+      // await invoke('set_default_mcp_server', { serverId });
+      await Promise.resolve();
+      const server = servers.find(s => s.id === serverId);
+      if (server) {
+        setDefaultServer(server);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to set default server');
+      throw err;
+    }
+  }, [servers]);
 
   return {
     servers,
@@ -105,9 +102,8 @@ export function useMCP(): UseMCPReturn {
     loading,
     error,
     addServer,
-    updateServer,
     removeServer,
-    setDefaultServer,
-    refreshServers,
+    setDefaultServer: setDefaultServerCallback,
+    refreshServers: loadServers
   };
 }

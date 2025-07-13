@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { CodeBlock } from './Markdown';
-import { themeOptions } from '@/lib/syntaxThemes';
 
 const sampleCode = {
   javascript: `// Example JavaScript code
@@ -133,7 +132,6 @@ export default function CodeTest() {
             <CodeBlock
               code={sampleCode[selectedExample]}
               language={selectedExample}
-              showLineNumbers
             />
           </div>
 
@@ -143,7 +141,6 @@ export default function CodeTest() {
             </h3>
             <CodeBlock
               code={unlabeledCode}
-              showLineNumbers
             />
           </div>
         </div>

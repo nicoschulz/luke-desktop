@@ -11,12 +11,20 @@ tauri-build = { version = "2.1.0", features = [] }
 [dependencies]
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
-tauri = { version = "2.1.0", features = ["shell-all", "fs-all"] }
+tauri = { version = "^2.1.0", features = [] }
+tauri-plugin-shell = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v2" }
+
 tokio = { version = "1.0", features = ["full"] }
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.0", features = ["v4", "serde"] }
 flate2 = "1.0"
 path-clean = "1.0"
+window-vibrancy = "0.6.0"
+directories = "6.0.0"
+thiserror = "2.0.12"
+argon2 = "0.5"
+rand_core = { version = "0.6", features = ["getrandom"] }
+password-hash = "0.5"
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]

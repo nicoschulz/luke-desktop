@@ -9,27 +9,23 @@ export interface Chat {
 
 export interface Message {
   id: string;
-  chatId: string;
-  role: 'user' | 'assistant';
   content: string;
-  timestamp: string;
-  metadata?: {
-    edited?: boolean;
-    editedAt?: string;
-    deleted?: boolean;
-    deletedAt?: string;
-    [key: string]: any;
-  };
+  role: 'user' | 'assistant' | 'system';
+  timestamp: Date;
 }
 
 export interface Attachment {
   id: string;
-  messageId: string;
-  filePath: string;
-  fileName: string;
-  fileType?: string;
-  fileSize: number;
-  createdAt: string;
+  name: string;
+  size: number;
+  type: string;
+}
+
+export interface ChatSession {
+  id: string;
+  title: string;
+  messages: Message[];
+  attachments: Attachment[];
 }
 
 export interface ChatTemplate {

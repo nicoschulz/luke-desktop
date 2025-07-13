@@ -1,4 +1,3 @@
-import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { CodeBlock } from './Markdown';
@@ -13,54 +12,33 @@ import {
 interface MarkdownRendererProps {
   content: string;
   className?: string;
-  enableSearch?: boolean;
-  enableWordWrap?: boolean;
-  showLineNumbers?: boolean;
 }
 
-export function MarkdownRenderer({
-  content,
-  className = '',
-  enableSearch = true,
-  enableWordWrap = true,
-  showLineNumbers = true,
-}: MarkdownRendererProps) {
+export function MarkdownRenderer({ content, className }: MarkdownRendererProps) {
   return (
     <ReactMarkdown
-      className={cn('prose prose-invert max-w-none', className)}
       remarkPlugins={[remarkGfm]}
+      className={`prose prose-sm max-w-none ${className || ''}`}
       components={{
-        // Enhanced code block handling
-        code({ node, inline, className, children, ...props }) {
+        code({ node, className, children, ...props }: any) {
           const match = /language-(\w+)/.exec(className || '');
-          const highlights = (props as any)['data-highlights'] || '';
+          const language = match ? match[1] : undefined;
+          const inline = props.inline;
           
-          if (!inline && (match || !className)) {
+          if (inline) {
             return (
-              <CodeBlock
-                code={String(children).replace(/\\n$/, '')}
-                language={match ? match[1] : undefined}
-                className={className}
-                highlights={highlights}
-                enableSearch={enableSearch}
-                enableWordWrap={enableWordWrap}
-                showLineNumbers={showLineNumbers}
-              />
+              <code className={className} {...props}>
+                {children}
+              </code>
             );
           }
 
           return (
-            <code
-              className={cn(
-                'px-1.5 py-0.5 rounded',
-                'bg-zinc-800 text-zinc-200',
-                'font-mono text-sm',
-                className
-              )}
-              {...props}
-            >
-              {children}
-            </code>
+            <CodeBlock
+              code={String(children).replace(/\n$/, '')}
+              language={language}
+              className={className}
+            />
           );
         },
 

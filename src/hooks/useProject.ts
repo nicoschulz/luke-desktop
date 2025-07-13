@@ -1,107 +1,116 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { projectManager } from '../lib/project/manager';
-import type { Project, ProjectSettings, ProjectError } from '../lib/project/types';
+import { Project } from '../lib/project/types';
 
-interface UseProjectResult {
+export interface UseProjectReturn {
   projects: Project[];
   currentProject: Project | null;
   loading: boolean;
-  error: ProjectError | null;
-  createProject: (name: string, description?: string, settings?: Partial<ProjectSettings>) => Promise<Project>;
-  loadProject: (id: string) => Promise<void>;
-  updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
+  error: string | null;
+  createProject: (name: string, description?: string) => Promise<Project>;
+  updateProject: (id: string, updates: Partial<Project>) => Promise<Project>;
   deleteProject: (id: string) => Promise<void>;
-  refreshProjects: () => Promise<void>;
+  setCurrentProject: (project: Project | null) => void;
 }
 
-export function useProject(): UseProjectResult {
+export function useProject(): UseProjectReturn {
   const [projects, setProjects] = useState<Project[]>([]);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<ProjectError | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const refreshProjects = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const projectList = await projectManager.listProjects();
-      setProjects(projectList);
-    } catch (err) {
-      setError(err as ProjectError);
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        setLoading(true);
+        const projectList = await projectManager.getProjects();
+        // Convert to match the expected Project type
+        const convertedProjects: Project[] = projectList.map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          description: p.description || '',
+          created: p.createdAt?.getTime()?.toString() || Date.now().toString(),
+          updated: p.createdAt?.getTime()?.toString() || Date.now().toString(),
+          settings: p.settings || {},
+          metadata: {
+            messageCount: 0,
+            attachmentCount: 0,
+            totalTokens: 0
+          }
+        }));
+        setProjects(convertedProjects);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to load projects');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadProjects();
   }, []);
 
-  const createProject = useCallback(async (
-    name: string,
-    description?: string,
-    settings?: Partial<ProjectSettings>
-  ): Promise<Project> => {
+  const createProject = async (name: string, description?: string): Promise<Project> => {
     try {
-      setLoading(true);
-      setError(null);
-      const newProject = await projectManager.createProject(name, description, settings);
-      await refreshProjects();
-      return newProject;
+      const newProject = await projectManager.createProject(name, description);
+      // Convert to match the expected Project type
+      const convertedProject: Project = {
+        id: newProject.id,
+        name: newProject.name,
+        description: newProject.description || '',
+        created: newProject.createdAt?.getTime()?.toString() || Date.now().toString(),
+        updated: newProject.createdAt?.getTime()?.toString() || Date.now().toString(),
+        settings: newProject.settings || {},
+        metadata: {
+          messageCount: 0,
+          attachmentCount: 0,
+          totalTokens: 0
+        }
+      };
+      setProjects(prev => [...prev, convertedProject]);
+      return convertedProject;
     } catch (err) {
-      setError(err as ProjectError);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw new Error(err instanceof Error ? err.message : 'Failed to create project');
     }
-  }, [refreshProjects]);
+  };
 
-  const loadProject = useCallback(async (id: string) => {
+  const updateProject = async (id: string, updates: Partial<Project>): Promise<Project> => {
     try {
-      setLoading(true);
-      setError(null);
-      const project = await projectManager.getProject(id);
-      setCurrentProject(project);
-    } catch (err) {
-      setError(err as ProjectError);
-      setCurrentProject(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const updateProject = useCallback(async (id: string, updates: Partial<Project>) => {
-    try {
-      setLoading(true);
-      setError(null);
       const updatedProject = await projectManager.updateProject(id, updates);
-      setCurrentProject(updatedProject);
-      await refreshProjects();
+      // Convert to match the expected Project type
+      const convertedProject: Project = {
+        id: updatedProject.id,
+        name: updatedProject.name,
+        description: updatedProject.description || '',
+        created: updatedProject.createdAt?.getTime()?.toString() || Date.now().toString(),
+        updated: updatedProject.createdAt?.getTime()?.toString() || Date.now().toString(),
+        settings: updatedProject.settings || {},
+        metadata: {
+          messageCount: 0,
+          attachmentCount: 0,
+          totalTokens: 0
+        }
+      };
+      setProjects(prev => prev.map(p => p.id === id ? convertedProject : p));
+      if (currentProject?.id === id) {
+        setCurrentProject(convertedProject);
+      }
+      return convertedProject;
     } catch (err) {
-      setError(err as ProjectError);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw new Error(err instanceof Error ? err.message : 'Failed to update project');
     }
-  }, [refreshProjects]);
+  };
 
-  const deleteProject = useCallback(async (id: string) => {
+  const deleteProject = async (id: string): Promise<void> => {
     try {
-      setLoading(true);
-      setError(null);
       await projectManager.deleteProject(id);
+      setProjects(prev => prev.filter(p => p.id !== id));
       if (currentProject?.id === id) {
         setCurrentProject(null);
       }
-      await refreshProjects();
     } catch (err) {
-      setError(err as ProjectError);
-      throw err;
-    } finally {
-      setLoading(false);
+      throw new Error(err instanceof Error ? err.message : 'Failed to delete project');
     }
-  }, [currentProject, refreshProjects]);
-
-  // Load projects on mount
-  useEffect(() => {
-    refreshProjects();
-  }, [refreshProjects]);
+  };
 
   return {
     projects,
@@ -109,9 +118,8 @@ export function useProject(): UseProjectResult {
     loading,
     error,
     createProject,
-    loadProject,
     updateProject,
     deleteProject,
-    refreshProjects,
+    setCurrentProject,
   };
 }

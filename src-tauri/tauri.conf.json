@@ -1,14 +1,11 @@
 {
-  "$schema": "../node_modules/@tauri-apps/cli/schema.json",
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "identifier": "com.lukedesktop.dev",
   "version": "0.1.0",
   "build": {
-    "frontend": {
-      "build": "npm run build",
-      "dev": "npm run dev"
-    },
-    "devUrl": "http://localhost:1420",
-    "distDir": "../dist"
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:1420"
   },
   "app": {
     "windows": [
@@ -22,26 +19,13 @@
       }
     ],
     "security": {
-      "csp": null,
-      "capabilities": {
-        "default": [
-          "app:default",
-          "window:default",
-          "fs:default",
-          "shell:allow-open",
-          "dialog:allow-open",
-          "protocol:asset",
-          "protocol:http",
-          "protocol:https"
-        ]
-      }
+      "csp": null
     }
   },
   "bundle": {
     "active": true,
     "category": "DeveloperTool",
     "copyright": "© 2024 Luke Desktop",
-    "targets": ["app", "deb", "updater"],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -53,9 +37,6 @@
     "externalBin": [],
     "shortDescription": "Claude Desktop alternative with MCP server support",
     "longDescription": "A desktop application built with Tauri and React that provides a Claude interface with Model Context Protocol server integration",
-    "deb": {
-      "depends": []
-    },
     "macOS": {
       "frameworks": [],
       "minimumSystemVersion": "10.13",

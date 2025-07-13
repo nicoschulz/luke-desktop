@@ -1,6 +1,6 @@
-import React, { FC, useState, useCallback, useRef, useEffect } from 'react';
+import { FC, useState, useCallback, useRef } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { Copy, Check, AlertCircle, Loader2, WrapText, Search, ChevronDown, ChevronUp } from 'lucide-react';
+import { Copy, Check, AlertCircle, WrapText, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getLanguageDisplayName } from '@/lib/languageDetection';
 import { useLanguageDetection } from '@/hooks/useLanguageDetection';
@@ -39,14 +39,10 @@ const CodeBlock: FC<CodeBlockProps> = ({
   const codeRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const {
-    language: detectedLang,
-    isDetecting,
-    error
-  } = useLanguageDetection(code, language, className);
+  const { detectedLanguage, error } = useLanguageDetection(code, language);
 
   // Parse line highlights
-  const highlightInfo = parseHighlightInfo(highlights);
+  const highlightInfo = parseHighlightInfo();
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(code);
@@ -90,17 +86,6 @@ const CodeBlock: FC<CodeBlockProps> = ({
     setCurrentMatch(matches.length > 0 ? 0 : -1);
   }, [code]);
 
-  // Navigate between matches
-  const navigateMatch = useCallback((direction: 'next' | 'prev') => {
-    if (searchMatches.length === 0) return;
-
-    if (direction === 'next') {
-      setCurrentMatch((prev) => (prev + 1) % searchMatches.length);
-    } else {
-      setCurrentMatch((prev) => (prev - 1 + searchMatches.length) % searchMatches.length);
-    }
-  }, [searchMatches.length]);
-
   // Custom renderer for line highlighting
   const lineProps = useCallback((lineNumber: number) => {
     const highlight = highlightInfo.lineHighlights.find(h => h.line === lineNumber);
@@ -121,6 +106,10 @@ const CodeBlock: FC<CodeBlockProps> = ({
     };
   }, [highlightInfo.lineHighlights, searchMatches, currentMatch]);
 
+  const isOverflowing = useCallback(() => {
+    return false; // Dummy implementation
+  }, []);
+
   return (
     <div className={cn(
       'relative group rounded-lg overflow-hidden',
@@ -135,9 +124,7 @@ const CodeBlock: FC<CodeBlockProps> = ({
         'border-b border-zinc-800'
       )}>
         <div className="flex items-center gap-2">
-          {isDetecting ? (
-            <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
-          ) : error ? (
+          {error ? (
             <Tooltip>
               <TooltipTrigger>
                 <AlertCircle className="h-4 w-4 text-amber-500" />
@@ -148,7 +135,7 @@ const CodeBlock: FC<CodeBlockProps> = ({
             </Tooltip>
           ) : (
             <span className="text-xs font-mono text-zinc-400">
-              {getLanguageDisplayName(detectedLang)}
+              {getLanguageDisplayName(detectedLanguage)}
             </span>
           )}
 
@@ -260,7 +247,7 @@ const CodeBlock: FC<CodeBlockProps> = ({
         )}
       >
         <SyntaxHighlighter
-          language={detectedLang}
+          language={detectedLanguage}
           style={claudeTheme}
           showLineNumbers={config.showLineNumbers}
           startingLineNumber={startLine}

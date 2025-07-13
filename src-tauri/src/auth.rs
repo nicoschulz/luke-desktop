@@ -1,8 +1,10 @@
-use argon2::{self, Config};
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
+use password_hash::SaltString;
+use rand_core::OsRng;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct User {
@@ -43,15 +45,17 @@ impl AuthService {
         }
         drop(users);
 
-        let salt = Uuid::new_v4().to_string();
-        let config = Config::default();
-        let hash = argon2::hash_encoded(password.as_bytes(), salt.as_bytes(), &config)
-            .map_err(|e| format!("Failed to hash password: {}", e))?;
+        let salt = SaltString::generate(&mut OsRng);
+        let argon2 = Argon2::default();
+        let password_hash = argon2
+            .hash_password(password.as_bytes(), &salt)
+            .map_err(|e| format!("Failed to hash password: {}", e))?
+            .to_string();
 
         let user = User {
             id: Uuid::new_v4().to_string(),
             username,
-            password_hash: hash,
+            password_hash,
             created_at: chrono::Utc::now().timestamp(),
             last_login: None,
         };
@@ -69,8 +73,13 @@ impl AuthService {
             .find(|u| u.username == username)
             .ok_or("Invalid username or password")?;
 
-        if !argon2::verify_encoded(&user.password_hash, password.as_bytes())
-            .map_err(|e| format!("Failed to verify password: {}", e))? {
+        let parsed_hash = PasswordHash::new(&user.password_hash)
+            .map_err(|e| format!("Failed to parse password hash: {}", e))?;
+        let argon2 = Argon2::default();
+        if argon2
+            .verify_password(password.as_bytes(), &parsed_hash)
+            .is_err()
+        {
             return Err("Invalid username or password".to_string());
         }
 

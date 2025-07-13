@@ -1,6 +1,6 @@
 use tauri::State;
 use std::sync::Mutex;
-use super::config::{ConfigManager, ConfigError};
+use super::config::ConfigManager;
 use super::types::{MCPServer};
 
 #[tauri::command]

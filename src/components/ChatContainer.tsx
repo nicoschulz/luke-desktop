@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ClaudeChat } from './ClaudeChat';
 
 const CLAUDE_MODELS = [

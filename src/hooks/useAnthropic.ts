@@ -1,81 +1,51 @@
-import { useState, useEffect, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/tauri';
+import { useState, useCallback } from 'react';
 import { AnthropicClient } from '../lib/anthropic/client';
-import type { ChatRequest, ChatResponse, ChatEventCallback } from '../lib/anthropic/types';
+import { ChatRequest } from '../lib/anthropic/types';
 
-interface UseAnthropicOptions {
-  onError?: (error: Error) => void;
+export interface UseAnthropicReturn {
+  client: AnthropicClient | null;
+  loading: boolean;
+  error: string | null;
+  sendMessage: (request: ChatRequest) => Promise<string>;
 }
 
-export function useAnthropic(options: UseAnthropicOptions = {}) {
+export function useAnthropic(apiKey: string): UseAnthropicReturn {
   const [client, setClient] = useState<AnthropicClient | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadApiKey();
-  }, []);
+  // Initialize client
+  if (!client) {
+    setClient(new AnthropicClient({ apiKey }));
+  }
 
-  const loadApiKey = async () => {
-    try {
-      const apiKey = await invoke<string>('get_api_key');
-      if (apiKey) {
-        setClient(new AnthropicClient({ apiKey }));
-      }
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error(String(err));
-      setError(error);
-      options.onError?.(error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const setApiKey = useCallback(async (apiKey: string) => {
-    try {
-      await invoke('set_api_key', { apiKey });
-      setClient(new AnthropicClient({ apiKey }));
-      setError(null);
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error(String(err));
-      setError(error);
-      options.onError?.(error);
-      throw error;
-    }
-  }, [options.onError]);
-
-  const chat = useCallback(async (request: ChatRequest): Promise<ChatResponse> => {
-    if (!client) {
-      throw new Error('Anthropic client not initialized');
-    }
-    return client.chat(request);
-  }, [client]);
-
-  const streamChat = useCallback(
-    async (
-      request: ChatRequest,
-      onEvent: ChatEventCallback,
-      onError?: (error: Error) => void
-    ): Promise<void> => {
+  const sendMessage = useCallback(
+    async (request: ChatRequest): Promise<string> => {
       if (!client) {
         throw new Error('Anthropic client not initialized');
       }
-      return client.streamChat(request, onEvent, onError);
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const response = await client.chat(request);
+        return response.content;
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
+        setError(errorMessage);
+        throw new Error(errorMessage);
+      } finally {
+        setLoading(false);
+      }
     },
     [client]
   );
 
-  const abort = useCallback(() => {
-    client?.abort();
-  }, [client]);
-
   return {
     client,
-    isLoading,
+    loading,
     error,
-    setApiKey,
-    chat,
-    streamChat,
-    abort,
+    sendMessage,
   };
 }

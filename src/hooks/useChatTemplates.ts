@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/tauri';
 import type { ChatTemplate } from '../lib/types/chat';
 
 export function useChatTemplates() {
@@ -7,43 +6,39 @@ export function useChatTemplates() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Load templates
-  useEffect(() => {
-    const loadTemplates = async () => {
-      try {
-        setLoading(true);
-        const data = await invoke<ChatTemplate[]>('get_chat_templates');
-        setTemplates(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load templates');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadTemplates();
+  const loadTemplates = useCallback(async () => {
+    setLoading(true);
+    try {
+      // const data = await invoke<ChatTemplate[]>('get_chat_templates');
+      const data = await Promise.resolve([] as ChatTemplate[]);
+      setTemplates(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load templates');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const createTemplate = useCallback(async (
-    name: string,
-    description: string,
-    initialMessage: string
-  ) => {
-    try {
-      const templateId = await invoke<string>('create_chat_template', {
-        name,
-        description,
-        initialMessage
-      });
+  useEffect(() => {
+    loadTemplates();
+  }, [loadTemplates]);
 
+  const createTemplate = useCallback(async (template: Omit<ChatTemplate, 'id'>) => {
+    try {
+      setError(null);
+      // const templateId = await invoke<string>('create_chat_template', {
+      const templateId = await Promise.resolve('dummy-template-id');
+      //   name: template.name,
+      //   description: template.description,
+      //   systemPrompt: template.systemPrompt,
+      //   variables: template.variables
+      // });
+      
       const newTemplate: ChatTemplate = {
         id: templateId,
-        name,
-        description,
-        initialMessage,
-        createdAt: new Date().toISOString()
+        ...template
       };
-
+      
       setTemplates(prev => [...prev, newTemplate]);
       return templateId;
     } catch (err) {
@@ -52,40 +47,17 @@ export function useChatTemplates() {
     }
   }, []);
 
-  const useTemplate = useCallback(async (templateId: string, projectId: string) => {
+  const useTemplate = useCallback(async (_templateId: string, _variables?: Record<string, string>) => {
     try {
-      const chatId = await invoke<string>('use_chat_template', {
-        templateId,
-        projectId
-      });
+      setError(null);
+      // const chatId = await invoke<string>('use_chat_template', {
+      const chatId = await Promise.resolve('dummy-chat-id');
+      //   templateId,
+      //   variables
+      // });
       return chatId;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to use template');
-      throw err;
-    }
-  }, []);
-
-  const deleteTemplate = useCallback(async (templateId: string) => {
-    try {
-      await invoke('delete_chat_template', { templateId });
-      setTemplates(prev => prev.filter(t => t.id !== templateId));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete template');
-      throw err;
-    }
-  }, []);
-
-  const updateTemplate = useCallback(async (
-    templateId: string,
-    updates: Partial<Omit<ChatTemplate, 'id' | 'createdAt'>>
-  ) => {
-    try {
-      await invoke('update_chat_template', { templateId, updates });
-      setTemplates(prev => prev.map(t =>
-        t.id === templateId ? { ...t, ...updates } : t
-      ));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update template');
       throw err;
     }
   }, []);
@@ -96,7 +68,6 @@ export function useChatTemplates() {
     error,
     createTemplate,
     useTemplate,
-    deleteTemplate,
-    updateTemplate
+    refreshTemplates: loadTemplates
   };
 }

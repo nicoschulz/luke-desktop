@@ -1,14 +1,13 @@
-// main.rs
 #![cfg_attr(
     all(not(debug_assertions), target_os = "windows"),
     windows_subsystem = "windows"
 )]
 
 mod auth;
-
 use auth::AuthService;
 use std::sync::Arc;
-use tauri::State;
+use tauri::{State, Builder};
+use tauri_plugin_shell::init;
 
 struct AppState {
     auth: Arc<AuthService>,
@@ -47,8 +46,9 @@ async fn logout(state: State<'_, AppState>, token: String) -> Result<(), String>
 
 fn main() {
     let auth_service = Arc::new(AuthService::new());
-    
-    tauri::Builder::default()
+
+    Builder::default()
+        .plugin(init()) // ← Shell-Plugin korrekt eingebunden
         .manage(AppState {
             auth: auth_service,
         })

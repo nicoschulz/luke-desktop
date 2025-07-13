@@ -1,11 +1,17 @@
 import { useState, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/tauri';
 import { ChatSession, ChatMessage } from '../types/chat';
 
-export function useChat() {
+// Dummy invoke function
+const invoke = async <T>(command: string, args?: any): Promise<T> => {
+  console.log(`Dummy invoke: ${command}`, args);
+  return {} as T;
+};
+
+export function useChat(chatId?: string) {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSession, setCurrentSession] = useState<ChatSession | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [attachments] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -87,10 +93,47 @@ export function useChat() {
     }
   }, [currentSession]);
 
+  // Dummy implementations for missing methods
+  const addMessage = useCallback(async (_content: string, _role: string = 'user') => {
+    // Dummy implementation
+    return Promise.resolve('dummy-message-id');
+  }, []);
+
+  const editMessage = useCallback(async (_messageId: string, _content: string) => {
+    // Dummy implementation
+    return Promise.resolve();
+  }, []);
+
+  const deleteMessage = useCallback(async (_messageId: string) => {
+    // Dummy implementation
+    return Promise.resolve();
+  }, []);
+
+  const addAttachment = useCallback(async (_messageId: string, _file: File) => {
+    // Dummy implementation
+    return Promise.resolve();
+  }, []);
+
+  const addTag = useCallback(async (_tag: string) => {
+    // Dummy implementation
+    return Promise.resolve();
+  }, []);
+
+  const removeTag = useCallback(async (_tag: string) => {
+    // Dummy implementation
+    return Promise.resolve();
+  }, []);
+
+  const updateChat = useCallback(async (_updates: any) => {
+    // Dummy implementation
+    return Promise.resolve();
+  }, []);
+
   return {
     sessions,
     currentSession,
     messages,
+    attachments,
     loading,
     error,
     loadSessions,
@@ -99,5 +142,13 @@ export function useChat() {
     sendMessage,
     archiveSession,
     setCurrentSession,
+    addMessage,
+    editMessage,
+    deleteMessage,
+    addAttachment,
+    addTag,
+    removeTag,
+    updateChat,
+    chat: { id: chatId, title: 'Chat', tags: [] }, // Dummy chat object
   };
 }

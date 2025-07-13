@@ -1,56 +1,55 @@
-import React, { useState, useEffect } from 'react';
-import { FileMetadata } from '../../hooks/useFileAttachment';
+import { useConversationAttachments } from '../../hooks/useConversationAttachments';
 import FileAttachment from '../FileAttachment';
-import FilePreview from '../FilePreview';
 
 interface ConversationAttachmentsProps {
   projectId: string;
   chatId: string;
-  onAttachmentsChange?: (attachments: FileMetadata[]) => void;
-  className?: string;
 }
 
-export const ConversationAttachments: React.FC<ConversationAttachmentsProps> = ({
-  projectId,
-  chatId,
-  onAttachmentsChange,
-  className = '',
-}) => {
-  const [attachments, setAttachments] = useState<FileMetadata[]>([]);
+export function ConversationAttachments({ projectId, chatId }: ConversationAttachmentsProps) {
+  const { attachments, loading, error } = useConversationAttachments(chatId);
 
-  const handleAttach = (metadata: FileMetadata) => {
-    const newAttachments = [...attachments, metadata];
-    setAttachments(newAttachments);
-    onAttachmentsChange?.(newAttachments);
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-4">
+        <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
 
-  const handleDelete = (fileId: string) => {
-    const newAttachments = attachments.filter(att => att.id !== fileId);
-    setAttachments(newAttachments);
-    onAttachmentsChange?.(newAttachments);
-  };
+  if (error) {
+    return (
+      <div className="p-4 text-red-500">
+        Error loading attachments: {error}
+      </div>
+    );
+  }
 
   return (
-    <div className={`flex flex-col gap-4 ${className}`}>
-      <div className="flex flex-wrap gap-2">
-        {attachments.map((attachment) => (
-          <div key={attachment.id} className="relative">
-            <FilePreview
-              metadata={attachment}
-              onDelete={() => handleDelete(attachment.id)}
-              className="w-32 h-32"
-            />
-          </div>
-        ))}
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-medium">Attachments</h3>
+        <FileAttachment
+          projectId={projectId}
+          chatId={chatId}
+          className="w-full"
+        />
       </div>
-      <FileAttachment
-        projectId={projectId}
-        chatId={chatId}
-        onAttach={handleAttach}
-        onDelete={handleDelete}
-      />
+
+      {attachments.length > 0 && (
+        <div className="space-y-2">
+          {attachments.map((attachment) => (
+            <div key={attachment.id} className="flex items-center justify-between p-2 border rounded">
+              <span>{attachment.name}</span>
+              <span className="text-sm text-gray-500">
+                {attachment.size} bytes
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
-};
+}
 
 export default ConversationAttachments;

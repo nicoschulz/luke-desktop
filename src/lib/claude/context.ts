@@ -49,6 +49,10 @@ export class ContextManager {
     return this.contexts.get(contextId);
   }
 
+  getAllContexts(): ConversationContext[] {
+    return Array.from(this.contexts.values());
+  }
+
   updateContext(contextId: string, updates: Partial<ConversationContext>): void {
     const context = this.contexts.get(contextId);
     if (!context) throw new Error(`Context ${contextId} not found`);

@@ -1,4 +1,3 @@
-import React from 'react';
 import { useTokenEstimation, useUsageTracking } from '../hooks/useTokenEstimation';
 import { ClaudeMessage } from '../lib/claude/types';
 

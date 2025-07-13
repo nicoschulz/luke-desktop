@@ -1,5 +1,7 @@
 use tauri::Manager;
-use window_vibrancy::{apply_blur, apply_vibrancy, NSVisualEffectMaterial};
+use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
+#[cfg(target_os = "windows")]
+use window_vibrancy::apply_blur;
 
 mod mcp;
 
@@ -13,21 +15,30 @@ pub fn run() {
         .setup(|app| {
             #[cfg(target_os = "macos")]
             {
-                let window = app.get_window("main").unwrap();
-                apply_vibrancy(&window, NSVisualEffectMaterial::HudWindow, None, None)
-                    .expect("Failed to apply vibrancy");
+                let window = app.get_webview_window("main").unwrap();
+                apply_vibrancy(
+                    &window,
+                    NSVisualEffectMaterial::HudWindow,
+                    None,
+                    None,
+                )
+                .expect("Failed to apply vibrancy");
             }
 
             #[cfg(target_os = "windows")]
             {
-                let window = app.get_window("main").unwrap();
+                let window = app.get_webview_window("main").unwrap();
                 apply_blur(&window, Some((18, 18, 18, 125)))
                     .expect("Failed to apply blur");
             }
 
             Ok(())
         })
-        .manage(Mutex::new(ConfigManager::new().expect("Failed to initialize config manager")))
+        .manage(Mutex::new(
+            ConfigManager::new().unwrap_or_else(|e| {
+                panic!("Failed to initialize config manager: {}", e)
+            }),
+        ))
         .invoke_handler(tauri::generate_handler![
             get_mcp_servers,
             get_mcp_server,

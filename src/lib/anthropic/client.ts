@@ -1,10 +1,8 @@
-import { invoke } from '@tauri-apps/api/tauri';
 import {
   AnthropicConfig,
   ChatRequest,
   ChatResponse,
   ChatEventCallback,
-  ErrorCallback,
   StreamChunk,
   AnthropicError,
 } from './types';
@@ -35,11 +33,10 @@ export class AnthropicClient {
       body: JSON.stringify({
         model: request.model || this.config.model,
         messages: request.messages,
-        max_tokens: request.max_tokens,
+        max_tokens: request.maxTokens,
         temperature: request.temperature,
-        top_p: request.top_p,
-        top_k: request.top_k,
-        stream: false,
+        stop_sequences: request.stopSequences,
+        system: request.systemPrompt,
       }),
     });
 
@@ -56,7 +53,7 @@ export class AnthropicClient {
   async streamChat(
     request: ChatRequest,
     onEvent: ChatEventCallback,
-    onError?: ErrorCallback
+    onError?: (error: Error) => void
   ): Promise<void> {
     this.controller = new AbortController();
 
@@ -66,10 +63,10 @@ export class AnthropicClient {
         body: JSON.stringify({
           model: request.model || this.config.model,
           messages: request.messages,
-          max_tokens: request.max_tokens,
+          max_tokens: request.maxTokens,
           temperature: request.temperature,
-          top_p: request.top_p,
-          top_k: request.top_k,
+          stop_sequences: request.stopSequences,
+          system: request.systemPrompt,
           stream: true,
         }),
         signal: this.controller.signal,
@@ -102,7 +99,9 @@ export class AnthropicClient {
             if (data === '[DONE]') return;
             try {
               const chunk: StreamChunk = JSON.parse(data);
-              onEvent(chunk);
+              if (onEvent.onChunk) {
+                onEvent.onChunk(JSON.stringify(chunk));
+              }
             } catch (error) {
               console.error('Error parsing chunk:', error);
             }
@@ -171,7 +170,7 @@ export class AnthropicClient {
       error.message = data.error?.message || 'Unknown error';
       error.status = response.status;
       error.code = data.error?.code;
-      error.param = data.error?.param;
+      error.details = data.error;
     } catch {
       error.message = `HTTP error ${response.status}`;
       error.status = response.status;

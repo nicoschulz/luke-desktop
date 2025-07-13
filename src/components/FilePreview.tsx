@@ -14,7 +14,7 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
   className = '',
 }) => {
   const getFileIcon = () => {
-    switch (metadata.mime_type) {
+    switch (metadata.type) {
       case 'image/jpeg':
       case 'image/png':
       case 'image/gif':

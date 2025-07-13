@@ -1,4 +1,4 @@
-import React from 'react';
+// import React from 'react';
 import { ChatSessionList } from './ChatSessionList';
 import { ChatInterface } from './ChatInterface';
 import { ResizablePanel, ResizablePanelGroup } from '../ui/resizable';

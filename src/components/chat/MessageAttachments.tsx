@@ -1,7 +1,6 @@
 import React from 'react';
 import { FileMetadata } from '../../hooks/useFileAttachment';
 import FilePreview from '../FilePreview';
-import { formatBytes } from '../../utils/format';
 
 interface MessageAttachmentsProps {
   attachments: FileMetadata[];

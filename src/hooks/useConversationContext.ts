@@ -24,7 +24,9 @@ export function useConversationContext(): UseConversationContextReturn {
 
   const updateContextsList = useCallback(() => {
     const contextsList: ConversationContext[] = [];
-    contextManager.contexts.forEach(context => contextsList.push(context));
+    // Use a public method instead of accessing private property
+    const allContexts = contextManager.getAllContexts();
+    allContexts.forEach((context: ConversationContext) => contextsList.push(context));
     setContexts(contextsList);
   }, [contextManager]);
 

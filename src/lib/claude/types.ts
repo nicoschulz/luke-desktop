@@ -1,12 +1,7 @@
-import { Message } from '@anthropic-ai/sdk';
-
 export interface ClaudeConfig {
   apiKey: string;
-  baseUrl?: string;
-  model?: string;
+  model: string;
   organization?: string;
-  maxRetries?: number;
-  retryDelay?: number;
 }
 
 export interface ClaudeMessage {
@@ -14,16 +9,7 @@ export interface ClaudeMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   created_at: number;
-  metadata?: Record<string, unknown>;
-  attachments?: ClaudeAttachment[];
-}
-
-export interface ClaudeAttachment {
-  id: string;
-  type: string;
-  name: string;
-  content: string | ArrayBuffer;
-  metadata?: Record<string, unknown>;
+  attachments?: any[];
 }
 
 export interface ClaudeCompletion {
@@ -34,10 +20,19 @@ export interface ClaudeCompletion {
   stop_reason: string | null;
   stop_sequence: string | null;
   usage: {
-    prompt_tokens: number;
-    completion_tokens: number;
-    total_tokens: number;
+    input_tokens: number;
+    output_tokens: number;
   };
+}
+
+export interface ClaudeStreamCallbacks {
+  onMessageStart?: (data: any) => void;
+  onMessageDelta?: (data: any) => void;
+  onMessageStop?: (data: any) => void;
+  onContentBlockStart?: (data: any) => void;
+  onContentBlockDelta?: (data: any) => void;
+  onContentBlockStop?: (data: any) => void;
+  onError?: (error: any) => void;
 }
 
 export interface ClaudeError extends Error {
@@ -45,12 +40,6 @@ export interface ClaudeError extends Error {
   code?: string;
   param?: string;
 }
-
-export type ClaudeStreamCallbacks = {
-  onChunk?: (chunk: string) => void;
-  onError?: (error: ClaudeError) => void;
-  onComplete?: (completion: ClaudeCompletion) => void;
-};
 
 export interface ClaudeRequestOptions {
   temperature?: number;

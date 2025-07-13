@@ -1,23 +1,24 @@
 import { useState, useCallback } from 'react';
-import { invoke } from '@tauri-apps/api/tauri';
 import type { Chat, Message, ChatSearchQuery } from '../lib/types/chat';
 
 export function useChatSearch() {
+  const [results, setResults] = useState<{ chats: Chat[]; messages: Message[] }>({
+    chats: [],
+    messages: []
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [results, setResults] = useState<{
-    chats: Chat[];
-    messages: Message[];
-  }>({ chats: [], messages: [] });
 
   const search = useCallback(async (query: ChatSearchQuery) => {
-    try {
-      setLoading(true);
-      setError(null);
+    setLoading(true);
+    setError(null);
 
+    try {
       const [chats, messages] = await Promise.all([
-        invoke<Chat[]>('search_chats', { query }),
-        query.text ? invoke<Message[]>('search_messages', { query: query.text }) : Promise.resolve([])
+        // invoke<Chat[]>('search_chats', { query }),
+        Promise.resolve([] as Chat[]),
+        // query.text ? invoke<Message[]>('search_messages', { query: query.text }) : Promise.resolve([])
+        query.text ? Promise.resolve([] as Message[]) : Promise.resolve([] as Message[])
       ]);
 
       setResults({ chats, messages });
@@ -29,9 +30,9 @@ export function useChatSearch() {
   }, []);
 
   return {
-    search,
     results,
     loading,
-    error
+    error,
+    search
   };
 }

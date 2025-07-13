@@ -10,22 +10,13 @@ import {
 
 export class ClaudeClient {
   private client: Anthropic;
-  private config: Required<ClaudeConfig>;
-  private retryCount: number = 0;
+  private config: ClaudeConfig;
 
   constructor(config: ClaudeConfig) {
-    this.config = {
-      baseUrl: 'https://api.anthropic.com/v1',
-      model: 'claude-3-opus-20240229',
-      organization: undefined,
-      maxRetries: 3,
-      retryDelay: 1000,
-      ...config,
-    };
+    this.config = config;
 
     this.client = new Anthropic({
       apiKey: config.apiKey,
-      baseURL: this.config.baseUrl,
     });
   }
 
@@ -35,32 +26,31 @@ export class ClaudeClient {
 
   private async retryWithBackoff<T>(
     operation: () => Promise<T>,
-    maxRetries: number = this.config.maxRetries,
-    baseDelay: number = this.config.retryDelay
+    maxRetries: number = 3,
+    baseDelay: number = 1000
   ): Promise<T> {
     try {
       return await operation();
     } catch (error) {
-      if (this.retryCount >= maxRetries) {
-        this.retryCount = 0;
+      if (maxRetries <= 0) {
         throw error;
       }
 
-      const delay = baseDelay * Math.pow(2, this.retryCount);
-      this.retryCount++;
-      
-      console.warn(`Retry attempt ${this.retryCount}/${maxRetries} after ${delay}ms`);
+      const delay = baseDelay * 2;
+      console.warn(`Retry attempt after ${delay}ms`);
       await this.delay(delay);
       
-      return this.retryWithBackoff(operation, maxRetries, baseDelay);
+      return this.retryWithBackoff(operation, maxRetries - 1, delay);
     }
   }
 
-  private formatMessages(messages: ClaudeMessage[]): { role: string; content: string }[] {
-    return messages.map(msg => ({
-      role: msg.role,
-      content: msg.content,
-    }));
+  private formatMessages(messages: ClaudeMessage[]): { role: 'user' | 'assistant'; content: string }[] {
+    return messages
+      .filter(msg => msg.role !== 'system')
+      .map(msg => ({
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content,
+      }));
   }
 
   async sendMessage(
@@ -69,24 +59,24 @@ export class ClaudeClient {
   ): Promise<ClaudeCompletion> {
     const {
       temperature = 0.7,
-      maxTokens,
+      maxTokens = 4096,
       stopSequences,
       systemPrompt,
-      maxRetries = this.config.maxRetries,
     } = options;
 
     const formattedMessages = this.formatMessages(messages);
     
-    if (systemPrompt) {
-      formattedMessages.unshift({ role: 'system', content: systemPrompt });
-    }
+    // Add system prompt as first message if provided
+    const allMessages = systemPrompt 
+      ? [{ role: 'user' as const, content: systemPrompt }, ...formattedMessages]
+      : formattedMessages;
 
     try {
       const response = await this.retryWithBackoff(
         async () => {
           const completion = await this.client.messages.create({
             model: this.config.model,
-            messages: formattedMessages,
+            messages: allMessages,
             max_tokens: maxTokens,
             temperature,
             stop_sequences: stopSequences,
@@ -95,21 +85,18 @@ export class ClaudeClient {
           return {
             id: completion.id,
             model: completion.model,
-            response: completion.content,
-            created_at: Date.parse(completion.created_at),
+            response: completion.content[0]?.type === 'text' ? completion.content[0].text : '',
+            created_at: Date.now(),
             stop_reason: completion.stop_reason || null,
             stop_sequence: completion.stop_sequence || null,
             usage: {
-              prompt_tokens: completion.usage.input_tokens,
-              completion_tokens: completion.usage.output_tokens,
-              total_tokens: completion.usage.input_tokens + completion.usage.output_tokens,
+              input_tokens: completion.usage.input_tokens,
+              output_tokens: completion.usage.output_tokens,
             },
           };
-        },
-        maxRetries
+        }
       );
 
-      this.retryCount = 0;
       return response;
     } catch (error) {
       const claudeError = error as ClaudeError;
@@ -127,24 +114,24 @@ export class ClaudeClient {
   ): Promise<void> {
     const {
       temperature = 0.7,
-      maxTokens,
+      maxTokens = 4096,
       stopSequences,
       systemPrompt,
-      maxRetries = this.config.maxRetries,
     } = options;
 
     const formattedMessages = this.formatMessages(messages);
     
-    if (systemPrompt) {
-      formattedMessages.unshift({ role: 'system', content: systemPrompt });
-    }
+    // Add system prompt as first message if provided
+    const allMessages = systemPrompt 
+      ? [{ role: 'user' as const, content: systemPrompt }, ...formattedMessages]
+      : formattedMessages;
 
     try {
       await this.retryWithBackoff(
         async () => {
           const stream = await this.client.messages.create({
             model: this.config.model,
-            messages: formattedMessages,
+            messages: allMessages,
             max_tokens: maxTokens,
             temperature,
             stop_sequences: stopSequences,
@@ -153,32 +140,23 @@ export class ClaudeClient {
 
           let fullContent = '';
           let usage = {
-            prompt_tokens: 0,
-            completion_tokens: 0,
-            total_tokens: 0,
+            input_tokens: 0,
+            output_tokens: 0,
           };
 
           for await (const chunk of stream) {
             if (chunk.type === 'message_delta') {
-              const content = chunk.delta?.text || '';
+              const content = (chunk.delta as any)?.text || '';
               fullContent += content;
               
-              if (callbacks.onChunk) {
-                callbacks.onChunk(content);
+              if (callbacks.onMessageDelta) {
+                callbacks.onMessageDelta(chunk);
               }
-            }
-
-            if (chunk.type === 'message_delta.usage') {
-              usage = {
-                prompt_tokens: chunk.usage.input_tokens,
-                completion_tokens: chunk.usage.output_tokens,
-                total_tokens: chunk.usage.input_tokens + chunk.usage.output_tokens,
-              };
             }
           }
 
-          if (callbacks.onComplete) {
-            callbacks.onComplete({
+          if (callbacks.onMessageStop) {
+            callbacks.onMessageStop({
               id: crypto.randomUUID(),
               model: this.config.model,
               response: fullContent,
@@ -188,11 +166,8 @@ export class ClaudeClient {
               usage,
             });
           }
-        },
-        maxRetries
+        }
       );
-
-      this.retryCount = 0;
     } catch (error) {
       const claudeError = error as ClaudeError;
       if (error instanceof Error) {

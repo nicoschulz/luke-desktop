@@ -1,4 +1,3 @@
-import React from 'react';
 import { useProject } from '../../hooks/useProject';
 import { ProjectList } from './ProjectList';
 import { ProjectDetails } from './ProjectDetails';

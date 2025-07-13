@@ -3,18 +3,22 @@ use std::path::{Path, PathBuf};
 use directories::ProjectDirs;
 use serde_json;
 use uuid::Uuid;
+use thiserror::Error; // ← Wichtig für Fehlerbehandlung
 
 use super::types::{MCPConfig, MCPServer};
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Error)] // ← Fehler-Enum mit automatischer Display-Implementierung
 pub enum ConfigError {
-    #[error("Failed to create config directory: {0}")]
+    #[error("Fehler beim Erstellen des Konfigurationsordners: {0}")]
     CreateDir(#[from] std::io::Error),
-    #[error("Failed to serialize/deserialize config: {0}")]
+
+    #[error("Fehler beim (De-)Serialisieren der Konfiguration: {0}")]
     Serialization(#[from] serde_json::Error),
-    #[error("Failed to determine config directory")]
+
+    #[error("Konfigurationsordner konnte nicht ermittelt werden")]
     ConfigDir,
-    #[error("Server not found: {0}")]
+
+    #[error("Server nicht gefunden: {0}")]
     ServerNotFound(String),
 }
 
@@ -27,7 +31,7 @@ impl ConfigManager {
     pub fn new() -> Result<Self, ConfigError> {
         let config_path = Self::get_config_path()?;
         let config = Self::load_or_create_config(&config_path)?;
-        
+
         Ok(Self {
             config_path,
             config,
@@ -37,10 +41,10 @@ impl ConfigManager {
     fn get_config_path() -> Result<PathBuf, ConfigError> {
         let proj_dirs = ProjectDirs::from("com", "lukedesktop", "LukeDesktop")
             .ok_or(ConfigError::ConfigDir)?;
-            
+
         let config_dir = proj_dirs.config_dir();
         fs::create_dir_all(config_dir).map_err(ConfigError::CreateDir)?;
-        
+
         Ok(config_dir.join("mcp.json"))
     }
 
@@ -64,13 +68,13 @@ impl ConfigManager {
     pub fn add_server(&mut self, server: MCPServer) -> Result<MCPServer, ConfigError> {
         let mut new_server = server;
         new_server.id = Uuid::new_v4().to_string();
-        
+
         self.config.servers.push(new_server.clone());
-        
+
         if self.config.default_server.is_none() {
             self.config.default_server = Some(new_server.id.clone());
         }
-        
+
         self.save()?;
         Ok(new_server)
     }
@@ -80,15 +84,15 @@ impl ConfigManager {
             .iter()
             .position(|s| s.id == id)
             .ok_or_else(|| ConfigError::ServerNotFound(id.to_string()))?;
-            
+
         self.config.servers.remove(pos);
-        
+
         if let Some(default_id) = &self.config.default_server {
             if default_id == id {
                 self.config.default_server = self.config.servers.first().map(|s| s.id.clone());
             }
         }
-        
+
         self.save()?;
         Ok(())
     }
@@ -98,7 +102,7 @@ impl ConfigManager {
             .iter()
             .position(|s| s.id == server.id)
             .ok_or_else(|| ConfigError::ServerNotFound(server.id.clone()))?;
-            
+
         self.config.servers[pos] = server;
         self.save()?;
         Ok(())
@@ -122,7 +126,7 @@ impl ConfigManager {
         if !self.config.servers.iter().any(|s| s.id == id) {
             return Err(ConfigError::ServerNotFound(id.to_string()));
         }
-        
+
         self.config.default_server = Some(id.to_string());
         self.save()?;
         Ok(())

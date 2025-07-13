@@ -1,112 +1,41 @@
-import { detect } from 'linguist-js';
-
-// Common language patterns
-const patterns = {
-  html: /<\/?[a-z][\s\S]*>/i,
-  css: /[{}\s;:][a-z-]+:\s*[^;\s}]+;?/i,
-  javascript: /(?:function|const|let|var|return|if|for|while|class)\b/,
-  typescript: /(?:interface|type|namespace|declare|abstract|public|private)\b/,
-  python: /(?:def|class|import|from|if|for|while|try|except)\b/,
-  rust: /(?:fn|let|mut|impl|struct|enum|trait|pub|use|mod)\b/,
-  sql: /(?:SELECT|INSERT|UPDATE|DELETE|FROM|WHERE|JOIN)\b/i,
-  json: /^[\s\n]*[{\[]/,
-  markdown: /(?:^#|\*\*|__|\[.*\]\(.*\))/m,
-  yaml: /^---[\s\S]*?---/m,
-  dockerfile: /^FROM\s+\w+/m,
-  shell: /(?:^#!\s*\/.*\/(?:bash|sh)|(?:^|\n)\s*(?:npm|yarn|cargo|apt-get|brew)\s+\w+)/m,
-};
-
-// Common file extensions mapping
-const extensionMap: Record<string, string> = {
-  js: 'javascript',
-  jsx: 'javascript',
-  ts: 'typescript',
-  tsx: 'typescript',
-  py: 'python',
-  rs: 'rust',
-  sql: 'sql',
-  json: 'json',
-  md: 'markdown',
-  yml: 'yaml',
-  yaml: 'yaml',
-  html: 'html',
-  css: 'css',
-  scss: 'scss',
-  sh: 'shell',
-  bash: 'shell',
-  dockerfile: 'dockerfile',
-};
-
-interface DetectionResult {
+export interface DetectionResult {
   language: string;
   confidence: number;
 }
 
-/**
- * Check if code matches a specific language pattern
- */
-function matchesPattern(code: string, language: string): boolean {
-  const pattern = patterns[language as keyof typeof patterns];
-  return pattern?.test(code) || false;
-}
+export async function detectLanguage(code: string): Promise<string> {
+  // Simple language detection based on file extensions and code patterns
+  const patterns = [
+    { language: 'javascript', pattern: /(function|const|let|var|=>|import|export)/ },
+    { language: 'typescript', pattern: /(interface|type|enum|namespace|declare)/ },
+    { language: 'python', pattern: /(def|import|from|class|if __name__)/ },
+    { language: 'java', pattern: /(public|private|class|import|package)/ },
+    { language: 'cpp', pattern: /(#include|namespace|std::|cout|cin)/ },
+    { language: 'csharp', pattern: /(using|namespace|class|public|private)/ },
+    { language: 'php', pattern: /(<?php|function|class|namespace)/ },
+    { language: 'ruby', pattern: /(def|class|module|require|include)/ },
+    { language: 'go', pattern: /(package|import|func|var|type)/ },
+    { language: 'rust', pattern: /(fn|let|mut|struct|enum|impl)/ },
+    { language: 'swift', pattern: /(import|func|class|struct|enum)/ },
+    { language: 'kotlin', pattern: /(fun|class|import|package|val|var)/ },
+    { language: 'scala', pattern: /(def|class|object|import|package)/ },
+    { language: 'html', pattern: /(<html|<head|<body|<div|<span)/ },
+    { language: 'css', pattern: /({|}|:|;|@media|@import)/ },
+    { language: 'sql', pattern: /(SELECT|INSERT|UPDATE|DELETE|CREATE|DROP)/ },
+    { language: 'bash', pattern: /(#!\/bin|echo|if|then|fi|for|do|done)/ },
+    { language: 'powershell', pattern: /(\$|Get-|Set-|Write-|if|foreach)/ },
+    { language: 'yaml', pattern: /(---|:|>|\||-)/ },
+    { language: 'json', pattern: /({|}|\[|\]|"|:|,)/ },
+    { language: 'xml', pattern: /(<[^>]+>|<\/[^>]+>)/ },
+    { language: 'markdown', pattern: /(# |## |### |\*\*|\*|`|\[|\])/ },
+  ];
 
-/**
- * Get probable languages based on content patterns
- */
-function getProbableLanguages(code: string): DetectionResult[] {
-  const matches: DetectionResult[] = [];
-  
-  for (const [language, pattern] of Object.entries(patterns)) {
+  for (const { language, pattern } of patterns) {
     if (pattern.test(code)) {
-      // Calculate rough confidence based on number of matches
-      const matchCount = (code.match(pattern) || []).length;
-      const confidence = Math.min(matchCount / 5, 1); // Cap at 1
-      matches.push({ language, confidence });
+      return language;
     }
   }
 
-  return matches.sort((a, b) => b.confidence - a.confidence);
-}
-
-/**
- * Try to detect language from file extension in code fence
- */
-function detectFromCodeFence(className?: string): string | null {
-  if (!className) return null;
-  
-  const match = /language-(\w+)/.exec(className);
-  if (!match) return null;
-
-  const ext = match[1].toLowerCase();
-  return extensionMap[ext] || ext;
-}
-
-/**
- * Detect code language using multiple strategies
- */
-export async function detectLanguage(
-  code: string,
-  className?: string
-): Promise<string> {
-  // 1. Try from code fence first
-  const fenceLanguage = detectFromCodeFence(className);
-  if (fenceLanguage) return fenceLanguage;
-
-  // 2. Use linguist-js for initial detection
-  try {
-    const linguistResult = await detect(code);
-    if (linguistResult) return linguistResult.toLowerCase();
-  } catch (error) {
-    console.warn('Language detection with linguist-js failed:', error);
-  }
-
-  // 3. Fall back to pattern matching
-  const probableLanguages = getProbableLanguages(code);
-  if (probableLanguages.length > 0) {
-    return probableLanguages[0].language;
-  }
-
-  // 4. Default fallback
   return 'text';
 }
 
@@ -116,20 +45,12 @@ export async function detectLanguage(
 export function getLanguageDisplayName(language: string): string {
   const displayNames: Record<string, string> = {
     javascript: 'JavaScript',
-    typescript: 'TypeScript',
     python: 'Python',
     rust: 'Rust',
     sql: 'SQL',
-    json: 'JSON',
-    markdown: 'Markdown',
-    yaml: 'YAML',
     html: 'HTML',
-    css: 'CSS',
-    scss: 'SCSS',
-    shell: 'Shell',
-    dockerfile: 'Dockerfile',
-    text: 'Plain Text',
+    text: 'Text',
   };
-
-  return displayNames[language] || language.charAt(0).toUpperCase() + language.slice(1);
+  
+  return displayNames[language] || language;
 }

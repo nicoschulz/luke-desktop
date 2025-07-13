@@ -1,123 +1,101 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { ClaudeClient } from '../lib/claude/client';
-import { ClaudeMessage, ClaudeCompletion } from '../lib/claude/types';
-
-export interface UseClaudeAIOptions {
-  apiKey: string;
-  baseUrl?: string;
-  model?: string;
-  organization?: string;
-}
+import { ClaudeConfig, ClaudeMessage, ClaudeRequestOptions, ClaudeStreamCallbacks } from '../lib/claude/types';
 
 export interface UseClaudeAIReturn {
-  sendMessage: (content: string) => Promise<ClaudeCompletion>;
-  streamMessage: (content: string, onChunk: (chunk: string) => void) => Promise<void>;
-  messages: ClaudeMessage[];
-  isLoading: boolean;
-  error: Error | null;
+  client: ClaudeClient | null;
+  loading: boolean;
+  error: string | null;
+  sendMessage: (content: string, options?: ClaudeRequestOptions) => Promise<string>;
+  streamMessage: (
+    content: string,
+    callbacks: ClaudeStreamCallbacks,
+    options?: ClaudeRequestOptions
+  ) => Promise<void>;
 }
 
-export function useClaudeAI({
-  apiKey,
-  baseUrl,
-  model,
-  organization,
-}: UseClaudeAIOptions): UseClaudeAIReturn {
-  const [messages, setMessages] = useState<ClaudeMessage[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
-  
-  const clientRef = useRef<ClaudeClient>();
-  
-  // Initialize client if not already done
-  if (!clientRef.current) {
-    clientRef.current = new ClaudeClient({
-      apiKey,
-      baseUrl,
-      model,
-      organization,
-    });
+export function useClaudeAI(config: ClaudeConfig): UseClaudeAIReturn {
+  const [client, setClient] = useState<ClaudeClient | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Initialize client
+  if (!client) {
+    setClient(new ClaudeClient(config));
   }
 
-  const sendMessage = useCallback(async (content: string) => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const newMessage: ClaudeMessage = {
-        id: crypto.randomUUID(),
-        role: 'user',
-        content,
-        created_at: Date.now(),
-      };
-      
-      setMessages(prev => [...prev, newMessage]);
-      
-      const completion = await clientRef.current!.sendMessage([...messages, newMessage]);
-      
-      const assistantMessage: ClaudeMessage = {
-        id: completion.id,
-        role: 'assistant',
-        content: completion.response,
-        created_at: completion.created_at,
-      };
-      
-      setMessages(prev => [...prev, assistantMessage]);
-      return completion;
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Unknown error occurred');
-      setError(error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [messages]);
+  const sendMessage = useCallback(
+    async (content: string, options: ClaudeRequestOptions = {}): Promise<string> => {
+      if (!client) {
+        throw new Error('Claude client not initialized');
+      }
 
-  const streamMessage = useCallback(async (content: string, onChunk: (chunk: string) => void) => {
-    setIsLoading(true);
-    setError(null);
-    
-    try {
-      const newMessage: ClaudeMessage = {
-        id: crypto.randomUUID(),
-        role: 'user',
-        content,
-        created_at: Date.now(),
-      };
-      
-      setMessages(prev => [...prev, newMessage]);
-      
-      let streamedContent = '';
-      await clientRef.current!.streamMessage(
-        [...messages, newMessage],
-        (chunk) => {
-          streamedContent += chunk;
-          onChunk(chunk);
-        }
-      );
-      
-      const assistantMessage: ClaudeMessage = {
-        id: crypto.randomUUID(),
-        role: 'assistant',
-        content: streamedContent,
-        created_at: Date.now(),
-      };
-      
-      setMessages(prev => [...prev, assistantMessage]);
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error('Unknown error occurred');
-      setError(error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  }, [messages]);
+      setLoading(true);
+      setError(null);
+
+      try {
+        const messages: ClaudeMessage[] = [
+          {
+            id: Date.now().toString(),
+            role: 'user',
+            content,
+            created_at: Date.now(),
+          },
+        ];
+
+        const response = await client.sendMessage(messages, options);
+        return response.response;
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
+        setError(errorMessage);
+        throw new Error(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [client]
+  );
+
+  const streamMessage = useCallback(
+    async (
+      content: string,
+      callbacks: ClaudeStreamCallbacks,
+      options: ClaudeRequestOptions = {}
+    ): Promise<void> => {
+      if (!client) {
+        throw new Error('Claude client not initialized');
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const messages: ClaudeMessage[] = [
+          {
+            id: Date.now().toString(),
+            role: 'user',
+            content,
+            created_at: Date.now(),
+          },
+        ];
+
+        await client.streamMessage(messages, callbacks, options);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : 'Failed to stream message';
+        setError(errorMessage);
+        throw new Error(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [client]
+  );
 
   return {
+    client,
+    loading,
+    error,
     sendMessage,
     streamMessage,
-    messages,
-    isLoading,
-    error,
   };
 }

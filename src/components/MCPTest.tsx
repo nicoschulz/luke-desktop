@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useMCP, useMCPServer } from '../hooks';
-import { MCPServer } from '../lib/mcp/types';
 
 export function MCPTest() {
   const { 
@@ -15,9 +14,7 @@ export function MCPTest() {
 
   const {
     status,
-    connecting,
     error: serverError,
-    sendRequest
   } = useMCPServer(defaultServer);
 
   const [newServerUrl, setNewServerUrl] = useState('');
@@ -29,8 +26,7 @@ export function MCPTest() {
       await addServer({
         name: newServerName,
         url: newServerUrl,
-        token: null,
-        last_connected: null
+        token: undefined,
       });
       setNewServerUrl('');
       setNewServerName('');
